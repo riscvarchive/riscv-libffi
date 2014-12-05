@@ -257,7 +257,7 @@ case "$host" in
 	TARGET=POWERPC; TARGETDIR=powerpc
 	;;
 	
-  riscv | riscv-*)
+  riscv | riscv-* | riscv64-*)
     TARGET=RISCV; TARGETDIR=riscv;
     ;;
 
