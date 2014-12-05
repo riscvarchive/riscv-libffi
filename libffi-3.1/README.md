@@ -13,3 +13,11 @@ Run tests in Spike:
 ```
 make check RUN_TEST_FLAGS="--target_board=riscv-sim --all"
 ```
+
+Run an individual test:
+
+Go to `testsuite/libffi.call` directory and run:
+
+```
+../../misc/run_test.sh <test_name.c>
+```
