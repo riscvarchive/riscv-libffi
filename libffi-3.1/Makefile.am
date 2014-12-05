@@ -8,7 +8,7 @@ SUBDIRS = include testsuite man
 
 EXTRA_DIST = LICENSE ChangeLog.v1 ChangeLog.libgcj			\
 	 src/aarch64/ffi.c src/aarch64/ffitarget.h src/aarch64/sysv.S	\
-	 src/alpha/ffi.c src/alpha/osf.S			\
+	 src/alpha/ffi.c src/alpha/osf.S			        \
 	 src/alpha/ffitarget.h src/arc/ffi.c src/arc/arcompact.S	\
 	 src/arc/ffitarget.h src/arm/ffi.c src/arm/sysv.S		\
 	 src/arm/ffitarget.h src/avr32/ffi.c src/avr32/sysv.S		\
@@ -31,6 +31,8 @@ EXTRA_DIST = LICENSE ChangeLog.v1 ChangeLog.libgcj			\
 	 src/powerpc/asm.h src/powerpc/aix.S src/powerpc/darwin.S	\
 	 src/powerpc/aix_closure.S src/powerpc/darwin_closure.S		\
 	 src/powerpc/ffi_darwin.c src/powerpc/ffitarget.h		\
+	 src/riscv/ffi.c src/riscv/rv32.S				\
+	 src/riscv/rv64.S src/riscv/ffitarget.h				\
 	 src/s390/ffi.c src/s390/sysv.S src/s390/ffitarget.h		\
 	 src/sh/ffi.c src/sh/sysv.S src/sh/ffitarget.h src/sh64/ffi.c	\
 	 src/sh64/sysv.S src/sh64/ffitarget.h src/sparc/v8.S		\
@@ -120,6 +122,9 @@ endif
 
 if MIPS
 nodist_libffi_la_SOURCES += src/mips/ffi.c src/mips/o32.S src/mips/n32.S
+endif
+if RISCV
+nodist_libffi_la_SOURCES += src/riscv/ffi.c src/riscv/rv32.S src/riscv/rv64.S
 endif
 if BFIN
 nodist_libffi_la_SOURCES += src/bfin/ffi.c src/bfin/sysv.S

@@ -256,6 +256,10 @@ case "$host" in
   powerpc*-*-rtems*)
 	TARGET=POWERPC; TARGETDIR=powerpc
 	;;
+	
+  riscv | riscv-*)
+    TARGET=RISCV; TARGETDIR=riscv;
+    ;;
 
   s390-*-* | s390x-*-*)
 	TARGET=S390; TARGETDIR=s390
@@ -273,8 +277,8 @@ case "$host" in
 	;;
 
   tile*-*)
-        TARGET=TILE; TARGETDIR=tile
-        ;;
+    TARGET=TILE; TARGETDIR=tile
+    ;;
 
   vax-*-*)
 	TARGET=VAX; TARGETDIR=vax
@@ -293,6 +297,7 @@ if test $TARGETDIR = unknown; then
   AC_MSG_ERROR(["libffi has not been ported to $host."])
 fi
 
+AM_CONDITIONAL(RISCV, test x$TARGET = xRISCV)
 AM_CONDITIONAL(MIPS, test x$TARGET = xMIPS)
 AM_CONDITIONAL(BFIN, test x$TARGET = xBFIN)
 AM_CONDITIONAL(SPARC, test x$TARGET = xSPARC)
