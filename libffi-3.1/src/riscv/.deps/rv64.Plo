@@ -1,0 +1,8 @@
+src/riscv/rv64.lo: src/riscv/rv64.S fficonfig.h include/ffi.h \
+ include/ffitarget.h
+
+fficonfig.h:
+
+include/ffi.h:
+
+include/ffitarget.h:
