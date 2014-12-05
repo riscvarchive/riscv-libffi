@@ -238,8 +238,11 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
             //case FFI_TYPE_LONG_DOUBLE:
                 cif->flags += cif->rtype->type << (FFI_FLAG_BITS * 8);
                 break;
+        // long long is the same size as a word in riscv64
+        #ifndef __riscv64
             case FFI_TYPE_SINT64:
             case FFI_TYPE_UINT64:
+        #endif
             case FFI_TYPE_DOUBLE:
                 cif->flags += FFI_TYPE_UINT64 << (FFI_FLAG_BITS * 8);
                 break;
@@ -261,10 +264,13 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
             //case FFI_TYPE_LONG_DOUBLE:
                 cif->flags += cif->rtype->type << (FFI_FLAG_BITS * 8);
                 break;
+        // long long is the same size as a word in riscv64
+        #ifndef __riscv64
             case FFI_TYPE_SINT64:
             case FFI_TYPE_UINT64:
                 cif->flags += FFI_TYPE_UINT64 << (FFI_FLAG_BITS * 8);
                 break;
+        #endif
             default:
                 cif->flags += FFI_TYPE_INT << (FFI_FLAG_BITS * 8);
                 break;
