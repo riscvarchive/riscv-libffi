@@ -59,6 +59,7 @@ fi
 cat > local.exp <<EOF
 set CC_FOR_TARGET "$CC"
 set CXX_FOR_TARGET "$CXX"
+lappend boards_dir "$srcdir/../misc"
 EOF
 
 AM_MAINTAINER_MODE
