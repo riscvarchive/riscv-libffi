@@ -11,7 +11,7 @@ make
 Run tests in Spike:
 
 ```
-make check RUN_TEST_FLAGS="--target_board=riscv-sim --all"
+make check RUNTESTFLAGS="--target_board=riscv-sim --all"
 ```
 
 Run an individual test:
