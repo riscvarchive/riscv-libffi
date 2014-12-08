@@ -144,29 +144,18 @@ set_arg0_float:
     addi    t1, t1, -1
     
     # when its zero, it means its just a word-sized float
-    bne     t1, zero, set_arg0_longlong
+    bne     t1, zero, set_arg0_double
     flw     fa0, FFI_SIZEOF_ARG_X0(sp) # load argument
     j       set_arg1
     
-set_arg0_longlong:    
-    addi    t1, t1, -1
-    
-    # when its zero, it means its just a double-word-sized int/struct
-    bne     t1, zero, set_arg0_double
-    ld      a0, FFI_SIZEOF_ARG_X0(sp) # load low order bits into even
-    ld      a1, FFI_SIZEOF_ARG_X1(sp) # load high order bits into odd
-    j       set_arg2
-    
 set_arg0_double:
     # otherwise it must be a double we're dealing with
-    flw     fa0, FFI_SIZEOF_ARG_X0(sp) # load low order bits into even
-    flw     fa1, FFI_SIZEOF_ARG_X1(sp) # load high order bits into odd
-    j       set_arg2
+    fld     fa0, FFI_SIZEOF_ARG_X0(sp)
 
 ####################
 ## SET ARGUMENT 1 ##
 ####################
-    
+
 set_arg1:
     srli    t1, t0, FFI_FLAG_BITS_X1 # Shift to get the bits for this argument
     andi    t1, t1, 3               # Mask out the bits for this argument
@@ -177,11 +166,17 @@ set_arg1:
     j       set_arg2
     
 set_arg1_float:
-    # this is an odd register, so that means we cannot have a double-sized type
-    # here anyway. we just assume its a float, in this case.
+    addi    t1, t1, -1
+    
+    # when its zero, it means its just a word-sized float
+    bne     t1, zero, set_arg1_double
     flw     fa1, FFI_SIZEOF_ARG_X1(sp) # load argument
     j       set_arg2
     
+set_arg1_double:
+    # otherwise it must be a double we're dealing with
+    fld     fa1, FFI_SIZEOF_ARG_X1(sp)
+
 ####################
 ## SET ARGUMENT 2 ##
 ####################
@@ -199,29 +194,18 @@ set_arg2_float:
     addi    t1, t1, -1
     
     # when its zero, it means its just a word-sized float
-    bne     t1, zero, set_arg2_longlong
+    bne     t1, zero, set_arg2_double
     flw     fa2, FFI_SIZEOF_ARG_X2(sp) # load argument
     j       set_arg3
     
-set_arg2_longlong:    
-    addi    t1, t1, -1
-    
-    # when its zero, it means its just a double-word-sized int/struct
-    bne     t1, zero, set_arg2_double
-    ld      a2, FFI_SIZEOF_ARG_X2(sp) # load low order bits into even
-    ld      a3, FFI_SIZEOF_ARG_X3(sp) # load high order bits into odd
-    j       set_arg4
-    
 set_arg2_double:
     # otherwise it must be a double we're dealing with
-    flw     fa2, FFI_SIZEOF_ARG_X2(sp) # load low order bits into even
-    flw     fa3, FFI_SIZEOF_ARG_X3(sp) # load high order bits into odd
-    j       set_arg4
+    fld     fa2, FFI_SIZEOF_ARG_X2(sp)
 
 ####################
 ## SET ARGUMENT 3 ##
 ####################
-    
+
 set_arg3:
     srli    t1, t0, FFI_FLAG_BITS_X3 # Shift to get the bits for this argument
     andi    t1, t1, 3               # Mask out the bits for this argument
@@ -232,10 +216,16 @@ set_arg3:
     j       set_arg4
     
 set_arg3_float:
-    # this is an odd register, so that means we cannot have a double-sized type
-    # here anyway. we just assume its a float, in this case.
+    addi    t1, t1, -1
+    
+    # when its zero, it means its just a word-sized float
+    bne     t1, zero, set_arg3_double
     flw     fa3, FFI_SIZEOF_ARG_X3(sp) # load argument
     j       set_arg4
+    
+set_arg3_double:
+    # otherwise it must be a double we're dealing with
+    fld     fa3, FFI_SIZEOF_ARG_X3(sp)
 
 ####################
 ## SET ARGUMENT 4 ##
@@ -254,29 +244,18 @@ set_arg4_float:
     addi    t1, t1, -1
     
     # when its zero, it means its just a word-sized float
-    bne     t1, zero, set_arg4_longlong
+    bne     t1, zero, set_arg4_double
     flw     fa4, FFI_SIZEOF_ARG_X4(sp) # load argument
     j       set_arg5
     
-set_arg4_longlong:    
-    addi    t1, t1, -1
-    
-    # when its zero, it means its just a double-word-sized int/struct
-    bne     t1, zero, set_arg4_double
-    ld      a4, FFI_SIZEOF_ARG_X4(sp) # load low order bits into even
-    ld      a5, FFI_SIZEOF_ARG_X5(sp) # load high order bits into odd
-    j       set_arg6
-    
 set_arg4_double:
     # otherwise it must be a double we're dealing with
-    flw     fa4, FFI_SIZEOF_ARG_X4(sp) # load low order bits into even
-    flw     fa5, FFI_SIZEOF_ARG_X5(sp) # load high order bits into odd
-    j       set_arg6
+    fld     fa4, FFI_SIZEOF_ARG_X4(sp)
 
 ####################
 ## SET ARGUMENT 5 ##
 ####################
-    
+
 set_arg5:
     srli    t1, t0, FFI_FLAG_BITS_X5 # Shift to get the bits for this argument
     andi    t1, t1, 3               # Mask out the bits for this argument
@@ -287,11 +266,17 @@ set_arg5:
     j       set_arg6
     
 set_arg5_float:
-    # this is an odd register, so that means we cannot have a double-sized type
-    # here anyway. we just assume its a float, in this case.
+    addi    t1, t1, -1
+    
+    # when its zero, it means its just a word-sized float
+    bne     t1, zero, set_arg5_double
     flw     fa5, FFI_SIZEOF_ARG_X5(sp) # load argument
     j       set_arg6
     
+set_arg5_double:
+    # otherwise it must be a double we're dealing with
+    fld     fa5, FFI_SIZEOF_ARG_X5(sp)
+
 ####################
 ## SET ARGUMENT 6 ##
 ####################
@@ -309,29 +294,18 @@ set_arg6_float:
     addi    t1, t1, -1
     
     # when its zero, it means its just a word-sized float
-    bne     t1, zero, set_arg6_longlong
+    bne     t1, zero, set_arg6_double
     flw     fa6, FFI_SIZEOF_ARG_X6(sp) # load argument
     j       set_arg7
     
-set_arg6_longlong:    
-    addi    t1, t1, -1
-    
-    # when its zero, it means its just a double-word-sized int/struct
-    bne     t1, zero, set_arg6_double
-    ld      a6, FFI_SIZEOF_ARG_X6(sp) # load low order bits into even
-    ld      a7, FFI_SIZEOF_ARG_X7(sp) # load high order bits into odd
-    j       call_it
-    
 set_arg6_double:
     # otherwise it must be a double we're dealing with
-    flw     fa6, FFI_SIZEOF_ARG_X6(sp) # load low order bits into even
-    flw     fa7, FFI_SIZEOF_ARG_X7(sp) # load high order bits into odd
-    j       call_it
+    fld     fa6, FFI_SIZEOF_ARG_X6(sp)
 
 ####################
 ## SET ARGUMENT 7 ##
 ####################
-    
+
 set_arg7:
     srli    t1, t0, FFI_FLAG_BITS_X7 # Shift to get the bits for this argument
     andi    t1, t1, 3               # Mask out the bits for this argument
@@ -342,10 +316,16 @@ set_arg7:
     j       call_it
     
 set_arg7_float:
-    # this is an odd register, so that means we cannot have a double-sized type
-    # here anyway. we just assume its a float, in this case.
+    addi    t1, t1, -1
+    
+    # when its zero, it means its just a word-sized float
+    bne     t1, zero, set_arg7_double
     flw     fa7, FFI_SIZEOF_ARG_X7(sp) # load argument
     j       call_it
+    
+set_arg7_double:
+    # otherwise it must be a double we're dealing with
+    fld     fa7, FFI_SIZEOF_ARG_X7(sp)
     
 #else
 
@@ -374,9 +354,12 @@ call_it:
     ld      t1, FFI_SIZEOF_ARG_X1(fp)
     beq     t1, zero, return_void
 
-    # is the return type word-sized? if not, jump ahead
+    # is the return type an int? if not, and if we have an FPU,
+    # jump ahead
+#ifndef __riscv_soft_float
     ori     t3, zero, FFI_TYPE_INT
-    bne     t2, t3, return_longdouble 
+    bne     t2, t3, return_float
+#endif
     
     jalr    t4 # call the function
     
@@ -384,24 +367,6 @@ call_it:
     # there was just a function call.
     ld      t0, FFI_SIZEOF_ARG_X1(fp)
     sd      a0, 0(t0)
-    j       epilogue
-
-return_longdouble:
-    # is the return type double-word-sized? if not, jump ahead
-    ori     t3, zero, FFI_TYPE_UINT64
-#ifndef __riscv_soft_float
-    bne     t2, t3, return_float
-#else
-    bne     t2, t3s, return_void
-#endif
-
-    jalr    t4 # call the function
-    
-    # We reload the return value because it was in a temp reg and
-    # there was just a function call.
-    ld      t0, FFI_SIZEOF_ARG_X1(fp)
-    sd      a1, FFI_SIZEOF_ARG_X1(t0)
-    sd      a0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 
 #ifndef __riscv_soft_float
@@ -428,8 +393,7 @@ return_double:
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
     ld      t0,  FFI_SIZEOF_ARG_X1(fp)
-    fsw     fa1, FFI_SIZEOF_ARG_X1(t0)
-    fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
+    fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 #endif
  
