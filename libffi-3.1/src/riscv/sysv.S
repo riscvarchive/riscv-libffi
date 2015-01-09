@@ -67,9 +67,9 @@
 
     .text
     .align  2
-    .globl  ffi_call_rv64
-    .type   ffi_call_rv64, @function
-ffi_call_rv64:   
+    .globl  ffi_call_asm
+    .type   ffi_call_asm, @function
+ffi_call_asm:   
     ### Prologue
     
     # a0 - ffi_prep_args pointer
@@ -85,11 +85,11 @@ ffi_call_rv64:
     # stack ptr points to first argument on stack,
     # but there should be no arguments on the stack
     
-    sd      flags,   FFI_SIZEOF_ARG_X0(sp)   # save flags
-    sd      rvalue,  FFI_SIZEOF_ARG_X1(sp)   # save return value pointer
-    sd      fn,      FFI_SIZEOF_ARG_X2(sp)   # save function pointer
-    sd      fp,      FFI_SIZEOF_ARG_X3(sp)   # save frame pointer
-    sd      ra,      FFI_SIZEOF_ARG_X4(sp)   # save return address
+    REG_S   flags,   FFI_SIZEOF_ARG_X0(sp)   # save flags
+    REG_S   rvalue,  FFI_SIZEOF_ARG_X1(sp)   # save return value pointer
+    REG_S   fn,      FFI_SIZEOF_ARG_X2(sp)   # save function pointer
+    REG_S   fp,      FFI_SIZEOF_ARG_X3(sp)   # save frame pointer
+    REG_S   ra,      FFI_SIZEOF_ARG_X4(sp)   # save return address
     
     add     fp, sp, zero             # new frame pointer is updated stack pointer
     add     t4, callback, zero       # function ptr to prep_args
@@ -117,7 +117,7 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    ld      t0, 0(fp)                  # load the flags word
+    REG_L      t0, 0(fp)                  # load the flags word
     srli    t2, t0, 16                 # shift our return type into t4
     
     li      t1, ARG_MASK
@@ -137,7 +137,7 @@ set_arg0:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg0_float 
-    ld      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
+    REG_L      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
     j       set_arg1
     
 set_arg0_float:
@@ -162,7 +162,7 @@ set_arg1:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg1_float 
-    ld      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
+    REG_L      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
     j       set_arg2
     
 set_arg1_float:
@@ -187,7 +187,7 @@ set_arg2:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg2_float 
-    ld      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
+    REG_L      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
     j       set_arg3
     
 set_arg2_float:
@@ -212,7 +212,7 @@ set_arg3:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg3_float 
-    ld      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
+    REG_L      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
     j       set_arg4
     
 set_arg3_float:
@@ -237,7 +237,7 @@ set_arg4:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg4_float 
-    ld      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
+    REG_L      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
     j       set_arg5
     
 set_arg4_float:
@@ -262,7 +262,7 @@ set_arg5:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg5_float 
-    ld      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
+    REG_L      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
     j       set_arg6
     
 set_arg5_float:
@@ -287,7 +287,7 @@ set_arg6:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg6_float 
-    ld      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
+    REG_L      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
     j       set_arg7
     
 set_arg6_float:
@@ -312,7 +312,7 @@ set_arg7:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg7_float 
-    ld      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
+    REG_L      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
     j       call_it
     
 set_arg7_float:
@@ -335,23 +335,23 @@ set_arg7_double:
     # that has a size of >8 bytes. Therefore, we can 
     # just load everything quite easily and nicely.
 
-    ld      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
-    ld      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
-    ld      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
-    ld      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
-    ld      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
-    ld      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
-    ld      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
-    ld      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
+    REG_L      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
+    REG_L      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
+    REG_L      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
+    REG_L      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
+    REG_L      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
+    REG_L      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
+    REG_L      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
+    REG_L      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
 
 #endif
 
 call_it:    
     # Load the function pointer
-    ld      t4, FFI_SIZEOF_ARG_X2(fp)
+    REG_L      t4, FFI_SIZEOF_ARG_X2(fp)
 
     # When the return value pointer is NULL, assume no return value.
-    ld      t1, FFI_SIZEOF_ARG_X1(fp)
+    REG_L      t1, FFI_SIZEOF_ARG_X1(fp)
     beq     t1, zero, return_void
 
     # is the return type an int? if not, and if we have an FPU,
@@ -365,8 +365,8 @@ call_it:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    ld      t0, FFI_SIZEOF_ARG_X1(fp)
-    sd      a0, 0(t0)
+    REG_L      t0, FFI_SIZEOF_ARG_X1(fp)
+    REG_S      a0, 0(t0)
     j       epilogue
 
 #ifndef __riscv_soft_float
@@ -379,7 +379,7 @@ return_float:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    ld      t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L      t0,  FFI_SIZEOF_ARG_X1(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 
@@ -392,7 +392,7 @@ return_double:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    ld      t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L      t0,  FFI_SIZEOF_ARG_X1(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 #endif
@@ -402,9 +402,145 @@ return_void:
     
 epilogue:   
     add     sp, fp, zero    
-    ld      fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
-    ld      ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
+    REG_L      fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
+    REG_L      ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
     add     sp, sp, FFI_SIZEOF_ARG_X8  # Fix stack pointer
     jr      ra
     
-    .size   ffi_call_rv64, .-ffi_call_rv64
+    .size   ffi_call_asm, .-ffi_call_asm
+
+    
+/* ffi_closure_asm. Expects address of the passed-in ffi_closure in t0. */
+
+#define SIZEOF_FRAME2 (20 * FFI_SIZEOF_ARG)
+#define RA_OFF2 (19 * FFI_SIZEOF_ARG)
+#define A7_OFF2 (18 * FFI_SIZEOF_ARG)
+#define A6_OFF2 (17 * FFI_SIZEOF_ARG)
+#define A5_OFF2 (16 * FFI_SIZEOF_ARG)
+#define A4_OFF2 (15 * FFI_SIZEOF_ARG)
+#define A3_OFF2 (14 * FFI_SIZEOF_ARG)
+#define A2_OFF2 (13 * FFI_SIZEOF_ARG)
+#define A1_OFF2 (12 * FFI_SIZEOF_ARG)
+#define A0_OFF2 (11 * FFI_SIZEOF_ARG)
+#define FA7_OFF2 (10 * FFI_SIZEOF_ARG)
+#define FA6_OFF2 (9 * FFI_SIZEOF_ARG)
+#define FA5_OFF2 (8 * FFI_SIZEOF_ARG)
+#define FA4_OFF2 (7 * FFI_SIZEOF_ARG)
+#define FA3_OFF2 (6 * FFI_SIZEOF_ARG)
+#define FA2_OFF2 (5 * FFI_SIZEOF_ARG)
+#define FA1_OFF2 (4 * FFI_SIZEOF_ARG)
+#define FA0_OFF2 (3 * FFI_SIZEOF_ARG)
+#define V1_OFF2 (2 * FFI_SIZEOF_ARG)
+#define V0_OFF2 (1 * FFI_SIZEOF_ARG)
+
+    .align 2
+    .globl ffi_closure_asm
+    .type ffi_closure_asm, @function
+ffi_closure_asm:
+
+    addi sp, sp, -SIZEOF_FRAME2
+    REG_S ra, RA_OFF2(sp) # Save return address
+    
+    # Store all possible argument registers. If there are more than
+    # fit in registers, then they were stored on the stack.
+    REG_S a0, A0_OFF2(sp)
+    REG_S a1, A1_OFF2(sp)
+    REG_S a2, A2_OFF2(sp)
+    REG_S a3, A3_OFF2(sp)
+    REG_S a4, A4_OFF2(sp)
+    REG_S a5, A5_OFF2(sp)
+    REG_S a6, A6_OFF2(sp)
+    REG_S a7, A7_OFF2(sp)
+    
+    # Store all possible float/double registers.
+    fsd fa0, FA0_OFF2(sp)
+    fsd fa1, FA1_OFF2(sp)
+    fsd fa2, FA2_OFF2(sp)
+    fsd fa3, FA3_OFF2(sp)
+    fsd fa4, FA4_OFF2(sp)
+    fsd fa5, FA5_OFF2(sp)
+    fsd fa6, FA6_OFF2(sp)
+    fsd fa7, FA7_OFF2(sp)
+    
+    # Call ffi_closure_riscv_inner to do the real work.
+    move a0, t0 # Pointer to the ffi_closure
+    addi a1, sp, V0_OFF2
+    addi a2, sp, A0_OFF2
+    addi a3, sp, FA0_OFF2
+    call ffi_closure_riscv_inner
+    
+    # Return flags are in a0
+    li t0, FFI_TYPE_SINT32
+    bne a0, t0, cls_retint
+    lw a0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retint:
+    li t0, FFI_TYPE_INT
+    bne a0, t0, cls_retfloat
+    REG_L a0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retfloat:
+    li t0, FFI_TYPE_FLOAT
+    bne a0, t0, cls_retdouble
+    flw fa0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retdouble:
+    li t0, FFI_TYPE_DOUBLE
+    bne a0, t0, cls_retstruct_d
+    fld fa0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_d:
+    li t0, FFI_TYPE_STRUCT_D
+    bne a0, t0, cls_retstruct_f
+    fld fa0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_f:
+    li t0, FFI_TYPE_STRUCT_F
+    bne a0, t0, cls_retstruct_d_d
+    flw fa0, V0_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_d_d:
+    li t0, FFI_TYPE_STRUCT_DD
+    bne a0, t0, cls_retstruct_f_f
+    fld fa0, V0_OFF2(sp)
+    fld fa1, V1_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_f_f:
+    li t0, FFI_TYPE_STRUCT_FF
+    bne a0, t0, cls_retstruct_d_f
+    flw fa0, V0_OFF2(sp)
+    flw fa1, V1_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_d_f:
+    li t0, FFI_TYPE_STRUCT_DF
+    bne a0, t0, cls_retstruct_f_d
+    fld fa0, V0_OFF2(sp)
+    flw fa1, V1_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_f_d:
+    li t0, FFI_TYPE_STRUCT_FD
+    bne a0, t0, cls_retstruct_small2
+    flw fa0, V0_OFF2(sp)
+    fld fa1, V1_OFF2(sp)
+    j cls_epilogue
+    
+cls_retstruct_small2:
+    REG_L a0, V0_OFF2(sp)
+    REG_L a1, V1_OFF2(sp)
+    
+# Epilogue
+cls_epilogue:
+    REG_L ra, RA_OFF2(sp) # Restore return address
+    addi sp, sp, SIZEOF_FRAME2
+    ret
+    
+    .size ffi_closure_asm, .-ffi_closure_asm

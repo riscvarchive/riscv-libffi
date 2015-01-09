@@ -12,7 +12,7 @@ set_arg""" + str(i) + """:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg""" + str(i) + """_float 
-    ld      a""" + str(i) + """, FFI_SIZEOF_ARG_X""" + str(i) + """(sp) # load argument
+    REG_L   a""" + str(i) + """, FFI_SIZEOF_ARG_X""" + str(i) + """(sp) # load argument
     j       set_arg""" + str(i+1) + """
     
 set_arg""" + str(i) + """_float:
