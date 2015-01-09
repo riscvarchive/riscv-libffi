@@ -575,12 +575,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
                 argp=(ffi_arg*)ALIGN(argp,arg_types[i]->alignment);
                 argn++;
             }
-            #if defined(__MIPSEB__) || defined(_MIPSEB)
-            if (arg_types[i]->type == FFI_TYPE_FLOAT && argn < 8)
-                avaluep[i] = ((char *) argp) + sizeof (float);
-            else
-            #endif
-                avaluep[i] = (char *) argp;
+            avaluep[i] = (char *) argp;
         }
         else
         {
