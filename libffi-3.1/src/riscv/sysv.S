@@ -36,34 +36,33 @@
 #define fn       a5
 #define fp       s0
 
-# Can't resolve expressions, workaround is
-# explicit enumeration of values
-
-# FFI_SIZEOF_ARG = 8 in this case
-
-#define FFI_SIZEOF_ARG_X0 0
-#define FFI_SIZEOF_ARG_X1 8
-#define FFI_SIZEOF_ARG_X2 16
-#define FFI_SIZEOF_ARG_X3 24
-#define FFI_SIZEOF_ARG_X4 32
-#define FFI_SIZEOF_ARG_X5 40
-#define FFI_SIZEOF_ARG_X6 48
-#define FFI_SIZEOF_ARG_X7 56
-#define FFI_SIZEOF_ARG_X8 64
+#define FFI_SIZEOF_ARG_X0 (0 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X1 (1 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X2 (2 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X3 (3 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X4 (4 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X5 (5 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X6 (6 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X7 (7 * FFI_SIZEOF_ARG)
+#define FFI_SIZEOF_ARG_X8 (8 * FFI_SIZEOF_ARG)
 
 #define ARG_MASK 65535
 
-#define FFI_FLAG_BITS_X0 0
-#define FFI_FLAG_BITS_X1 2
-#define FFI_FLAG_BITS_X2 4
-#define FFI_FLAG_BITS_X3 6
-#define FFI_FLAG_BITS_X4 8
-#define FFI_FLAG_BITS_X5 10
-#define FFI_FLAG_BITS_X6 12
-#define FFI_FLAG_BITS_X7 14
+#define FFI_FLAG_BITS_X0 (0 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X1 (1 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X2 (2 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X3 (3 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X4 (4 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X5 (5 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X6 (6 * FFI_FLAG_BITS)
+#define FFI_FLAG_BITS_X7 (7 * FFI_FLAG_BITS)
 
 # Stack pointer needs to be 16-byte aligned, so frame size is rounded up
-# FFI_SIZEOF_ARG should be 4 in the 32-bit case
+#ifdef __riscv64
+#  define SIZEOF_FRAME (6 * FFI_SIZEOF_ARG)
+#else
+#  define SIZEOF_FRAME (8 * FFI_SIZEOF_ARG)
+#endif
 
     .text
     .align  2
@@ -79,8 +78,8 @@ ffi_call_asm:
     # a4 - rvalue
     # a5 - function ptr
     
-    add     sp, sp, -FFI_SIZEOF_ARG_X6   # move stack pointer by frame size
-                                         # must be 16-byte aligned 
+    add     sp, sp, -SIZEOF_FRAME   # move stack pointer by frame size
+                                    # must be 16-byte aligned 
     
     # stack ptr points to first argument on stack,
     # but there should be no arguments on the stack
@@ -117,7 +116,7 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    REG_L      t0, 0(fp)                  # load the flags word
+    REG_L   t0, 0(fp)                  # load the flags word
     srli    t2, t0, 16                 # shift our return type into t4
     
     li      t1, ARG_MASK
@@ -137,7 +136,7 @@ set_arg0:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg0_float 
-    REG_L      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
+    REG_L   a0, FFI_SIZEOF_ARG_X0(sp) # load argument
     j       set_arg1
     
 set_arg0_float:
@@ -162,7 +161,7 @@ set_arg1:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg1_float 
-    REG_L      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
+    REG_L   a1, FFI_SIZEOF_ARG_X1(sp) # load argument
     j       set_arg2
     
 set_arg1_float:
@@ -187,7 +186,7 @@ set_arg2:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg2_float 
-    REG_L      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
+    REG_L   a2, FFI_SIZEOF_ARG_X2(sp) # load argument
     j       set_arg3
     
 set_arg2_float:
@@ -212,7 +211,7 @@ set_arg3:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg3_float 
-    REG_L      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
+    REG_L   a3, FFI_SIZEOF_ARG_X3(sp) # load argument
     j       set_arg4
     
 set_arg3_float:
@@ -237,7 +236,7 @@ set_arg4:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg4_float 
-    REG_L      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
+    REG_L   a4, FFI_SIZEOF_ARG_X4(sp) # load argument
     j       set_arg5
     
 set_arg4_float:
@@ -262,7 +261,7 @@ set_arg5:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg5_float 
-    REG_L      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
+    REG_L   a5, FFI_SIZEOF_ARG_X5(sp) # load argument
     j       set_arg6
     
 set_arg5_float:
@@ -287,7 +286,7 @@ set_arg6:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg6_float 
-    REG_L      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
+    REG_L   a6, FFI_SIZEOF_ARG_X6(sp) # load argument
     j       set_arg7
     
 set_arg6_float:
@@ -312,7 +311,7 @@ set_arg7:
     
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg7_float 
-    REG_L      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
+    REG_L   a7, FFI_SIZEOF_ARG_X7(sp) # load argument
     j       call_it
     
 set_arg7_float:
@@ -335,23 +334,23 @@ set_arg7_double:
     # that has a size of >8 bytes. Therefore, we can 
     # just load everything quite easily and nicely.
 
-    REG_L      a0, FFI_SIZEOF_ARG_X0(sp) # load argument
-    REG_L      a1, FFI_SIZEOF_ARG_X1(sp) # load argument
-    REG_L      a2, FFI_SIZEOF_ARG_X2(sp) # load argument
-    REG_L      a3, FFI_SIZEOF_ARG_X3(sp) # load argument
-    REG_L      a4, FFI_SIZEOF_ARG_X4(sp) # load argument
-    REG_L      a5, FFI_SIZEOF_ARG_X5(sp) # load argument
-    REG_L      a6, FFI_SIZEOF_ARG_X6(sp) # load argument
-    REG_L      a7, FFI_SIZEOF_ARG_X7(sp) # load argument
+    REG_L   a0, FFI_SIZEOF_ARG_X0(sp) # load argument
+    REG_L   a1, FFI_SIZEOF_ARG_X1(sp) # load argument
+    REG_L   a2, FFI_SIZEOF_ARG_X2(sp) # load argument
+    REG_L   a3, FFI_SIZEOF_ARG_X3(sp) # load argument
+    REG_L   a4, FFI_SIZEOF_ARG_X4(sp) # load argument
+    REG_L   a5, FFI_SIZEOF_ARG_X5(sp) # load argument
+    REG_L   a6, FFI_SIZEOF_ARG_X6(sp) # load argument
+    REG_L   a7, FFI_SIZEOF_ARG_X7(sp) # load argument
 
 #endif
 
 call_it:    
     # Load the function pointer
-    REG_L      t4, FFI_SIZEOF_ARG_X2(fp)
+    REG_L   t4, FFI_SIZEOF_ARG_X2(fp)
 
     # When the return value pointer is NULL, assume no return value.
-    REG_L      t1, FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t1, FFI_SIZEOF_ARG_X1(fp)
     beq     t1, zero, return_void
 
     # is the return type an int? if not, and if we have an FPU,
@@ -365,8 +364,8 @@ call_it:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    REG_L      t0, FFI_SIZEOF_ARG_X1(fp)
-    REG_S      a0, 0(t0)
+    REG_L   t0, FFI_SIZEOF_ARG_X1(fp)
+    REG_S   a0, 0(t0)
     j       epilogue
 
 #ifndef __riscv_soft_float
@@ -379,7 +378,7 @@ return_float:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    REG_L      t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 
@@ -392,7 +391,7 @@ return_double:
     
     # We reload the return value because it was in a temp reg and
     # there was just a function call.
-    REG_L      t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 #endif
@@ -402,8 +401,8 @@ return_void:
     
 epilogue:   
     add     sp, fp, zero    
-    REG_L      fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
-    REG_L      ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
+    REG_L   fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
+    REG_L   ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
     add     sp, sp, FFI_SIZEOF_ARG_X8  # Fix stack pointer
     jr      ra
     
