@@ -1,7 +1,9 @@
 /* -----------------------------------------------------------------------
-   ffi.c - 2014 Michael Knyszek
+   ffi.c - Copyright (c) 2015 Michael Knyszek <mknyszek@berkeley.edu>
+                         2015 Andrew Waterman <waterman@cs.berkeley.edu>
+   Based on MIPS N32/64 port
    
-   RISC-V 32-bit Foreign Function Interface 
+   RISC-V Foreign Function Interface 
 
    Permission is hereby granted, free of charge, to any person obtaining
    a copy of this software and associated documentation files (the
@@ -40,6 +42,10 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
     char *argp;
     ffi_type **p_arg;
     
+    /* If more than 8 double words are used, the remainder go
+       on the stack. We reorder stuff on the stack here to
+       support this easily. */
+    
     if (bytes > 8 * sizeof(ffi_arg))
         argp = &stack[bytes - (8 * sizeof(ffi_arg))];
     else
@@ -47,7 +53,7 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
 
     memset(stack, 0, bytes);
 
-    if (ecif->cif->rtype->type == FFI_TYPE_STRUCT)
+    if (ecif->cif->rstruct_flag != 0)
     {
         *(ffi_arg *) argp = (ffi_arg) ecif->rvalue;
         argp += sizeof(ffi_arg);
@@ -210,6 +216,9 @@ static unsigned calc_riscv_struct_flags(int soft_float, ffi_type *arg, unsigned 
     return flags;
 }
 
+/* The flags output of this routine should match the various struct cases
+   described in ffitarget.h */
+
 static unsigned calc_riscv_return_struct_flags(int soft_float, ffi_type *arg)
 {
     unsigned flags = 0;
@@ -327,8 +336,8 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
         }
         switch (type)
         {
-            case FFI_TYPE_FLOAT:
-            case FFI_TYPE_DOUBLE:
+            case FFI_TYPE_FLOAT:  // = 2 = 0b10
+            case FFI_TYPE_DOUBLE: // = 3 = 0b11
                 cif->flags += ((cif->arg_types)[index]->type << (arg_reg * FFI_FLAG_BITS));
                 arg_reg++;
                 break;
@@ -433,7 +442,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
         copy_rvalue = 1;
     }
     
-    ffi_call_asm(ffi_prep_args, &ecif, cif->bytes, cif->flags, ecif.rvalue, fn);
+    ffi_call_asm(ffi_prep_args, &ecif, cif->bytes, cif->flags, rvalue_copy, fn);
     
     if (copy_rvalue)
         memcpy(ecif.rvalue, rvalue_copy, cif->rtype->size);

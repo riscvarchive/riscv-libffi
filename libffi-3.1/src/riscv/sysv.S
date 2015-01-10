@@ -1,5 +1,7 @@
 /* -----------------------------------------------------------------------
-   rv64.S - Michael Knyszek 2014
+   ffi.c - Copyright (c) 2015 Michael Knyszek <mknyszek@berkeley.edu>
+                         2015 Andrew Waterman <waterman@cs.berkeley.edu>
+   Based on MIPS N32/64 port
    
    RISC-V Foreign Function Interface 
 
@@ -362,12 +364,15 @@ call_it:
     
     jalr    t4 # call the function
     
-    # We reload the return value because it was in a temp reg and
+    # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
     REG_L   t0, FFI_SIZEOF_ARG_X1(fp)
     REG_S   a0, 0(t0)
     j       epilogue
 
+    # when we're in the soft float case, we'll just fall through here to the
+    # soft float struct special cases
+    
 #ifndef __riscv_soft_float
 return_float:
     # is the return type a float? if not, jump ahead
@@ -376,7 +381,7 @@ return_float:
     
     jalr    t4 # call the function
     
-    # We reload the return value because it was in a temp reg and
+    # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
     REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
@@ -385,20 +390,230 @@ return_float:
 return_double:
     # is the return type a double? if not, give up
     ori     t3, zero, FFI_TYPE_DOUBLE
-    bne     t2, t3, return_void
+    bne     t2, t3, return_struct_d
     
     jalr    t4 # call the function
     
-    # We reload the return value because it was in a temp reg and
+    # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
     REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
-#endif
- 
-return_void:   
+
+### Handle struct special cases (hard float)
+
+  # Here the struct to return is less than
+  # or equal to 2 pointer-words in size. We
+  # need to specifically handle the floats/doubles.
+
+return_struct_d:
+    # is the return type a struct with a double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_D
+    bne     t2, t3,   return_struct_f
+    
     jalr    t4 # call the function
     
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
+    j       epilogue
+    
+return_struct_f:
+    # is the return type a struct with a float? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_F
+    bne     t2, t3,   return_struct_d_d
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
+    j       epilogue
+    
+return_struct_d_d:
+    # is the return type a struct with two doubles? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_DD
+    bne     t2, t3,   return_struct_f_f
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
+    fsd     fa1, FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_f_f:
+    # is the return type a struct with two floats? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_FF
+    bne     t2, t3,   return_struct_d_f
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
+    fsw     fa1, FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_d_f:
+    # is the return type a struct with a double then float? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_DF
+    bne     t2, t3,   return_struct_f_d
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
+    fsw     fa1, FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_f_d:
+    # is the return type a struct with a float then double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_FD
+    bne     t2, t3,   return_struct_small
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
+    fsd     fa1, FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+#else
+
+### Handle struct special cases (soft float)
+
+  # Here the struct to return is less than
+  # or equal to 2 pointer-words in size. We
+  # need to specifically handle the floats/doubles.
+
+return_struct_d_soft:
+    # is the return type a struct with a double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_D_SOFT
+    bne     t2, t3,   return_struct_f_soft
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sd      a0,  FFI_SIZEOF_ARG_X0(t0)
+    j       epilogue
+    
+return_struct_f_soft:
+    # is the return type a struct with a float? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_F_SOFT
+    bne     t2, t3,   return_struct_d_d_soft
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sw      a0,  FFI_SIZEOF_ARG_X0(t0)
+    j       epilogue
+    
+return_struct_d_d_soft:
+    # is the return type a struct with two doubles? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_DD_SOFT
+    bne     t2, t3,   return_struct_f_f_soft
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sd      a0,  FFI_SIZEOF_ARG_X0(t0)
+    sd      a1,  FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_f_f_soft:
+    # is the return type a struct with two floats? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_FF_SOFT
+    bne     t2, t3,   return_struct_d_f_soft
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sw      a0,  FFI_SIZEOF_ARG_X0(t0)
+    sw      a1,  FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_d_f_soft:
+    # is the return type a struct with a double then float? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_DF_SOFT
+    bne     t2, t3,   return_struct_f_d_soft
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sd      a0,  FFI_SIZEOF_ARG_X0(t0)
+    sw      a1,  FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+return_struct_f_d_soft:
+    # is the return type a struct with a float then double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_FD_SOFT
+    bne     t2, t3,   return_struct_small
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    sw      a0,  FFI_SIZEOF_ARG_X0(t0)
+    sd      a1,  FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+#endif    
+
+### Handle struct special cases (tiny structs)
+
+return_struct_small:
+    # is the return type a struct with a float then double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_SMALL
+    bne     t2, t3,   return_struct_small2
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_S   a0,  FFI_SIZEOF_ARG_X0(t0)
+    j       epilogue
+    
+return_struct_small2:
+    # is the return type a struct with a float then double? if not, give up
+    ori     t3, zero, FFI_TYPE_STRUCT_SMALL2
+    bne     t2, t3,   return_struct
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_S   a0,  FFI_SIZEOF_ARG_X0(t0)
+    REG_S   a1,  FFI_SIZEOF_ARG_X1(t0)
+    j       epilogue
+    
+### Any other struct is returned through memory
+return_struct: 
+return_void:   
+    jalr    t4 # call the function
+   
 epilogue:   
     add     sp, fp, zero    
     REG_L   fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
