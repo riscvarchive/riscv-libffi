@@ -119,12 +119,12 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    move    t3, sp                     # copy stack ptr to t3
-    REG_L   t0, FFI_SIZEOF_ARG_X5(fp)  # load the bytes word
-    li      t1, FFI_SIZEOF_ARG_X8
-    
-    blt     t0, t1, set_args           # fix stack pointer if there are more than
-    add     t3, t3, t1                 # 8 64-bit slots worth of arguments
+    #move    t3, sp                     # copy stack ptr to t3
+    #REG_L   t0, FFI_SIZEOF_ARG_X5(fp)  # load the bytes word
+    #li      t1, FFI_SIZEOF_ARG_X8
+    #
+    #blt     t0, t1, set_args           # fix stack pointer if there are more than
+    #add     t3, t3, t1                 # 8 64-bit slots worth of arguments
     
 set_args:
     REG_L   t0, FFI_SIZEOF_ARG_X0(fp)  # load the flags word
