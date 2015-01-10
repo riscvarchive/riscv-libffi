@@ -425,27 +425,8 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
         ecif.rvalue = alloca(cif->rtype->size);
     else
         ecif.rvalue = rvalue;
-
-    int copy_rvalue = 0;
-    char *rvalue_copy = ecif.rvalue;
-    if (cif->rtype->type == FFI_TYPE_STRUCT && cif->rtype->size < 2 * FFI_SIZEOF_ARG)
-    {
-        /* For structures smaller than 16 bytes we clobber memory
-           in 8 byte increments. Make a copy so we don't clobber
-           the callers memory outside of the struct bounds. */
-        rvalue_copy = alloca(2 * FFI_SIZEOF_ARG);
-        copy_rvalue = 1;
-    }
-    else if (cif->rtype->type == FFI_TYPE_FLOAT && (cif->abi == FFI_RV64_SOFT_FLOAT || cif->abi == FFI_RV32_SOFT_FLOAT))
-    {
-        rvalue_copy = alloca(FFI_SIZEOF_ARG);
-        copy_rvalue = 1;
-    }
     
-    ffi_call_asm(ffi_prep_args, &ecif, cif->bytes, cif->flags, rvalue_copy, fn);
-    
-    if (copy_rvalue)
-        memcpy(ecif.rvalue, rvalue_copy, cif->rtype->size);
+    ffi_call_asm(ffi_prep_args, &ecif, cif->bytes, cif->flags, ecif.rvalue, fn);
 }
 
 #if FFI_CLOSURES

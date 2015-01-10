@@ -91,6 +91,7 @@ ffi_call_asm:
     REG_S   fn,      FFI_SIZEOF_ARG_X2(sp)   # save function pointer
     REG_S   fp,      FFI_SIZEOF_ARG_X3(sp)   # save frame pointer
     REG_S   ra,      FFI_SIZEOF_ARG_X4(sp)   # save return address
+    REG_S   bytes,   FFI_SIZEOF_ARG_X5(sp)   # save number of bytes
     
     add     fp, sp, zero             # new frame pointer is updated stack pointer
     add     t4, callback, zero       # function ptr to prep_args
@@ -118,8 +119,16 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    REG_L   t0, 0(fp)                  # load the flags word
-    srli    t2, t0, 16                 # shift our return type into t4
+    move    t3, sp                     # copy stack ptr to t3
+    REG_L   t0, FFI_SIZEOF_ARG_X5(fp)  # load the bytes word
+    li      t1, FFI_SIZEOF_ARG_X8
+    
+    blt     t0, t1, set_args           # fix stack pointer if there are more than
+    add     t3, t3, t1                 # 8 64-bit slots worth of arguments
+    
+set_args:
+    REG_L   t0, FFI_SIZEOF_ARG_X0(fp)  # load the flags word
+    srli    t2, t0, 16                 # shift our return type into t2
     
     li      t1, ARG_MASK
     and     t0, t0, t1                 # mask out the arg types into t0
@@ -142,7 +151,7 @@ set_arg0:
     j       set_arg1
     
 set_arg0_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg0_double
@@ -167,7 +176,7 @@ set_arg1:
     j       set_arg2
     
 set_arg1_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg1_double
@@ -192,7 +201,7 @@ set_arg2:
     j       set_arg3
     
 set_arg2_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg2_double
@@ -217,7 +226,7 @@ set_arg3:
     j       set_arg4
     
 set_arg3_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg3_double
@@ -242,7 +251,7 @@ set_arg4:
     j       set_arg5
     
 set_arg4_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg4_double
@@ -267,7 +276,7 @@ set_arg5:
     j       set_arg6
     
 set_arg5_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg5_double
@@ -292,7 +301,7 @@ set_arg6:
     j       set_arg7
     
 set_arg6_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg6_double
@@ -317,7 +326,7 @@ set_arg7:
     j       call_it
     
 set_arg7_float:
-    addi    t1, t1, -1
+    addi    t1, t1, -2
     
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg7_double
