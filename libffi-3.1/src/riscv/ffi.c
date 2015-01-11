@@ -42,14 +42,7 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
     char *argp;
     ffi_type **p_arg;
     
-    /* If more than 8 double words are used, the remainder go
-       on the stack. We reorder stuff on the stack here to
-       support this easily. */
-    
-    if (bytes > 8 * sizeof(ffi_arg))
-        argp = &stack[bytes - (8 * sizeof(ffi_arg))];
-    else
-        argp = stack;
+    argp = stack;
 
     memset(stack, 0, bytes);
 

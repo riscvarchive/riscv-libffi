@@ -119,14 +119,6 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    #move    t3, sp                     # copy stack ptr to t3
-    #REG_L   t0, FFI_SIZEOF_ARG_X5(fp)  # load the bytes word
-    #li      t1, FFI_SIZEOF_ARG_X8
-    #
-    #blt     t0, t1, set_args           # fix stack pointer if there are more than
-    #add     t3, t3, t1                 # 8 64-bit slots worth of arguments
-    
-set_args:
     REG_L   t0, FFI_SIZEOF_ARG_X0(fp)  # load the flags word
     srli    t2, t0, 16                 # shift our return type into t2
     
@@ -323,7 +315,7 @@ set_arg7:
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg7_float 
     REG_L   a7, FFI_SIZEOF_ARG_X7(sp) # load argument
-    j       call_it
+    j       fix_sp
     
 set_arg7_float:
     addi    t1, t1, -2
@@ -331,7 +323,7 @@ set_arg7_float:
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg7_double
     flw     fa7, FFI_SIZEOF_ARG_X7(sp) # load argument
-    j       call_it
+    j       fix_sp
     
 set_arg7_double:
     # otherwise it must be a double we're dealing with
@@ -356,7 +348,16 @@ set_arg7_double:
 
 #endif
 
-call_it:    
+fix_sp:
+    # fix the stack pointer to point to the first argument 
+    # not passed in a register
+    REG_L   t1, FFI_SIZEOF_ARG_X5(fp) # load bytes word
+    li      t0, FFI_SIZEOF_ARG_X8
+    
+    blt     t1, t0, call_it
+    add     sp, sp, FFI_SIZEOF_ARG_X8
+
+call_it:
     # Load the function pointer
     REG_L   t4, FFI_SIZEOF_ARG_X2(fp)
 
@@ -627,7 +628,7 @@ epilogue:
     add     sp, fp, zero    
     REG_L   fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
     REG_L   ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
-    add     sp, sp, FFI_SIZEOF_ARG_X8  # Fix stack pointer
+    add     sp, sp, SIZEOF_FRAME       # Fix stack pointer
     jr      ra
     
     .size   ffi_call_asm, .-ffi_call_asm
