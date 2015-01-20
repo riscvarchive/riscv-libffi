@@ -143,13 +143,13 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
                     break;
             }
         }
-        else
+        else if (z <= 2*sizeof(ffi_arg))
         {
-            unsigned long end = (unsigned long) argp + z;
-            unsigned long cap = (unsigned long) stack + bytes;
-            
             /* Check if the data will fit within the register space.
                Handle it if it doesn't. */
+            
+            unsigned long end = (unsigned long) argp + z;
+            unsigned long cap = (unsigned long) stack + bytes;
             
             if (end <= cap)
                 memcpy(argp, *p_argv, z);
@@ -163,6 +163,13 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
                 memcpy(argp, (void*)((unsigned long)(*p_argv) + portion), z);
             }
         }
+        else
+        {
+            /* It's too big to pass in any registers or on the stack, 
+               so we pass by reference. */
+            
+            *(ffi_arg *)argp = (ffi_arg) *p_argv;
+        }
         
         p_argv++;
         argp += z;
@@ -172,7 +179,7 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
 /* This code traverses structure definitions 
    and generates the appropriate flags. */
 
-static unsigned calc_riscv_struct_flags(int soft_float, ffi_type *arg, unsigned *loc, unsigned *arg_reg)
+static unsigned calc_riscv_struct_flags(int soft_float, ffi_type *arg, size_t size, unsigned *loc, unsigned *arg_reg)
 {
     unsigned flags = 0;
     unsigned index = 0;
@@ -180,6 +187,13 @@ static unsigned calc_riscv_struct_flags(int soft_float, ffi_type *arg, unsigned 
     
     if (soft_float)
         return 0;
+    
+    /* The struct is too big to pass on the stack, so we pass it by reference */
+    if (size > 2 * FFI_SIZEOF_ARG)
+    {
+        (*arg_reg)++;
+        return 0;
+    }
     
     while ((e = arg->elements[index]))
     {
@@ -329,14 +343,14 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
         }
         switch (type)
         {
-            case FFI_TYPE_FLOAT:  // = 2 = 0b10
-            case FFI_TYPE_DOUBLE: // = 3 = 0b11
+            case FFI_TYPE_FLOAT:  /* = 2 = 0b10 */
+            case FFI_TYPE_DOUBLE: /* = 3 = 0b11 */
                 cif->flags += ((cif->arg_types)[index]->type << (arg_reg * FFI_FLAG_BITS));
                 arg_reg++;
                 break;
             case FFI_TYPE_STRUCT:
                 loc = arg_reg * FFI_SIZEOF_ARG;
-                cif->flags += calc_riscv_struct_flags(soft_float, (cif->arg_types)[index], &loc, &arg_reg);
+                cif->flags += calc_riscv_struct_flags(soft_float, (cif->arg_types)[index], (cif->arg_types)[index]->size, &loc, &arg_reg);
                 break;
             default:
                 arg_reg++;
@@ -383,13 +397,11 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
         case FFI_TYPE_FLOAT:
         case FFI_TYPE_DOUBLE:
             cif->flags += cif->rtype->type << (FFI_FLAG_BITS * 8);
-            break;        
-        #ifndef __riscv64
-        case FFI_TYPE_SINT64:
-        case FFI_TYPE_UINT64:
-            cif->flags += FFI_TYPE_UINT64 << (FFI_FLAG_BITS * 8);
             break;
-        #endif
+        case FFI_TYPE_SINT32:
+        case FFI_TYPE_UINT32:
+            cif->flags += FFI_TYPE_SINT32 << (FFI_FLAG_BITS * 8);
+            break;
         default:
             cif->flags += FFI_TYPE_INT << (FFI_FLAG_BITS * 8);
             break;

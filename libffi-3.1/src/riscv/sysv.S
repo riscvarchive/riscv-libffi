@@ -367,10 +367,9 @@ call_it:
 
     # is the return type an int? if not, and if we have an FPU,
     # jump ahead
-#ifndef __riscv_soft_float
+
     ori     t3, zero, FFI_TYPE_INT
-    bne     t2, t3, return_float
-#endif
+    bne     t2, t3,   return_int32
     
     jalr    t4 # call the function
     
@@ -380,8 +379,21 @@ call_it:
     REG_S   a0, 0(t0)
     j       epilogue
 
-    # when we're in the soft float case, we'll just fall through here to the
-    # soft float struct special cases
+return_int32:
+    ori     t3, zero, FFI_TYPE_SINT32
+#ifndef __riscv_soft_float
+    bne     t2, t3, return_float
+#else
+    bne     t2, t3, return_struct_d_soft
+#endif
+    
+    jalr    t4 # call the function
+    
+    # We reload the return pointer because it was in a temp reg and
+    # there was just a function call.
+    REG_L   t0, FFI_SIZEOF_ARG_X1(fp)
+    sw      a0, 0(t0)
+    j       epilogue
     
 #ifndef __riscv_soft_float
 return_float:
@@ -694,15 +706,15 @@ ffi_closure_asm:
     call ffi_closure_riscv_inner
     
     # Return flags are in a0
-    li t0, FFI_TYPE_SINT32
-    bne a0, t0, cls_retint
-    lw a0, V0_OFF2(sp)
+    li t0, FFI_TYPE_INT
+    bne a0, t0, cls_retint32
+    REG_L a0, V0_OFF2(sp)
     j cls_epilogue
     
-cls_retint:
-    li t0, FFI_TYPE_INT
+cls_retint32:
+    li t0, FFI_TYPE_SINT32
     bne a0, t0, cls_retfloat
-    REG_L a0, V0_OFF2(sp)
+    lw a0, V0_OFF2(sp)
     j cls_epilogue
     
 cls_retfloat:
