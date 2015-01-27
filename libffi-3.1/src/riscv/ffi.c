@@ -169,6 +169,8 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
                so we pass by reference. */
             
             *(ffi_arg *)argp = (ffi_arg) *p_argv;
+            
+            z = sizeof(ffi_arg);
         }
         
         p_argv++;
@@ -567,7 +569,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
             argp = (argn >= 8 || soft_float) ? ar + argn : fpr + argn;
             if ((arg_types[i]->type == FFI_TYPE_LONGDOUBLE) && ((uintptr_t)argp & (arg_types[i]->alignment-1)))
             {
-                argp=(ffi_arg*)ALIGN(argp,arg_types[i]->alignment);
+                argp = (ffi_arg*)ALIGN(argp,arg_types[i]->alignment);
                 argn++;
             }
             avaluep[i] = (char *) argp;
@@ -623,10 +625,9 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
                     if (argn < 8)
                     {
                         /* Allocate space for the struct as at least part of
-                        it was passed in registers. */
+                           it was passed in registers. */
                         avaluep[i] = alloca(arg_types[i]->size);
-                        copy_struct(avaluep[i], 0, cif->abi, arg_types[i],
-                        argn, 0, ar, fpr, soft_float);
+                        copy_struct(avaluep[i], 0, cif->abi, arg_types[i], argn, 0, ar, fpr, soft_float);
                         break;
                     }
                     

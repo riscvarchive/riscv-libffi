@@ -649,134 +649,134 @@ epilogue:
 /* ffi_closure_asm. Expects address of the passed-in ffi_closure in t0. */
 
 #define SIZEOF_FRAME2 (20 * FFI_SIZEOF_ARG)
-#define A7_OFF2 (19 * FFI_SIZEOF_ARG)
-#define A6_OFF2 (18 * FFI_SIZEOF_ARG)
-#define A5_OFF2 (17 * FFI_SIZEOF_ARG)
-#define A4_OFF2 (16 * FFI_SIZEOF_ARG)
-#define A3_OFF2 (15 * FFI_SIZEOF_ARG)
-#define A2_OFF2 (14 * FFI_SIZEOF_ARG)
-#define A1_OFF2 (13 * FFI_SIZEOF_ARG)
-#define A0_OFF2 (12 * FFI_SIZEOF_ARG)
-#define FA7_OFF2 (11 * FFI_SIZEOF_ARG)
-#define FA6_OFF2 (10 * FFI_SIZEOF_ARG)
-#define FA5_OFF2 (9 * FFI_SIZEOF_ARG)
-#define FA4_OFF2 (8 * FFI_SIZEOF_ARG)
-#define FA3_OFF2 (7 * FFI_SIZEOF_ARG)
-#define FA2_OFF2 (6 * FFI_SIZEOF_ARG)
-#define FA1_OFF2 (5 * FFI_SIZEOF_ARG)
-#define FA0_OFF2 (4 * FFI_SIZEOF_ARG)
-#define V1_OFF2 (3 * FFI_SIZEOF_ARG)
-#define V0_OFF2 (2 * FFI_SIZEOF_ARG)
-#define RA_OFF2 (1 * FFI_SIZEOF_ARG)
+#define A7_OFF2       (19 * FFI_SIZEOF_ARG)
+#define A6_OFF2       (18 * FFI_SIZEOF_ARG)
+#define A5_OFF2       (17 * FFI_SIZEOF_ARG)
+#define A4_OFF2       (16 * FFI_SIZEOF_ARG)
+#define A3_OFF2       (15 * FFI_SIZEOF_ARG)
+#define A2_OFF2       (14 * FFI_SIZEOF_ARG)
+#define A1_OFF2       (13 * FFI_SIZEOF_ARG)
+#define A0_OFF2       (12 * FFI_SIZEOF_ARG)
+#define FA7_OFF2      (11 * FFI_SIZEOF_ARG)
+#define FA6_OFF2      (10 * FFI_SIZEOF_ARG)
+#define FA5_OFF2      ( 9 * FFI_SIZEOF_ARG)
+#define FA4_OFF2      ( 8 * FFI_SIZEOF_ARG)
+#define FA3_OFF2      ( 7 * FFI_SIZEOF_ARG)
+#define FA2_OFF2      ( 6 * FFI_SIZEOF_ARG)
+#define FA1_OFF2      ( 5 * FFI_SIZEOF_ARG)
+#define FA0_OFF2      ( 4 * FFI_SIZEOF_ARG)
+#define V1_OFF2       ( 3 * FFI_SIZEOF_ARG)
+#define V0_OFF2       ( 2 * FFI_SIZEOF_ARG)
+#define RA_OFF2       ( 1 * FFI_SIZEOF_ARG)
 
     .align 2
     .globl ffi_closure_asm
     .type ffi_closure_asm, @function
 ffi_closure_asm:
 
-    addi sp, sp, -SIZEOF_FRAME2
-    REG_S ra, RA_OFF2(sp) # Save return address
+    addi    sp,  sp, -SIZEOF_FRAME2
+    REG_S   ra,  RA_OFF2(sp) # Save return address
     
     # Store all possible argument registers. If there are more than
     # fit in registers, then they were stored on the stack.
-    REG_S a0, A0_OFF2(sp)
-    REG_S a1, A1_OFF2(sp)
-    REG_S a2, A2_OFF2(sp)
-    REG_S a3, A3_OFF2(sp)
-    REG_S a4, A4_OFF2(sp)
-    REG_S a5, A5_OFF2(sp)
-    REG_S a6, A6_OFF2(sp)
-    REG_S a7, A7_OFF2(sp)
+    REG_S   a0,  A0_OFF2(sp)
+    REG_S   a1,  A1_OFF2(sp)
+    REG_S   a2,  A2_OFF2(sp)
+    REG_S   a3,  A3_OFF2(sp)
+    REG_S   a4,  A4_OFF2(sp)
+    REG_S   a5,  A5_OFF2(sp)
+    REG_S   a6,  A6_OFF2(sp)
+    REG_S   a7,  A7_OFF2(sp)
     
     # Store all possible float/double registers.
-    fsd fa0, FA0_OFF2(sp)
-    fsd fa1, FA1_OFF2(sp)
-    fsd fa2, FA2_OFF2(sp)
-    fsd fa3, FA3_OFF2(sp)
-    fsd fa4, FA4_OFF2(sp)
-    fsd fa5, FA5_OFF2(sp)
-    fsd fa6, FA6_OFF2(sp)
-    fsd fa7, FA7_OFF2(sp)
+    fsd     fa0, FA0_OFF2(sp)
+    fsd     fa1, FA1_OFF2(sp)
+    fsd     fa2, FA2_OFF2(sp)
+    fsd     fa3, FA3_OFF2(sp)
+    fsd     fa4, FA4_OFF2(sp)
+    fsd     fa5, FA5_OFF2(sp)
+    fsd     fa6, FA6_OFF2(sp)
+    fsd     fa7, FA7_OFF2(sp)
     
     # Call ffi_closure_riscv_inner to do the real work.
-    move a0, t0 # Pointer to the ffi_closure
-    addi a1, sp, V0_OFF2
-    addi a2, sp, A0_OFF2
-    addi a3, sp, FA0_OFF2
-    call ffi_closure_riscv_inner
+    move    a0, t0 # Pointer to the ffi_closure
+    addi    a1, sp, V0_OFF2
+    addi    a2, sp, A0_OFF2
+    addi    a3, sp, FA0_OFF2
+    call    ffi_closure_riscv_inner
     
     # Return flags are in a0
-    li t0, FFI_TYPE_INT
-    bne a0, t0, cls_retint32
-    REG_L a0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0, FFI_TYPE_INT
+    bne     a0, t0, cls_retint32
+    REG_L   a0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retint32:
-    li t0, FFI_TYPE_SINT32
-    bne a0, t0, cls_retfloat
-    lw a0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0, FFI_TYPE_SINT32
+    bne     a0, t0, cls_retfloat
+    lw      a0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retfloat:
-    li t0, FFI_TYPE_FLOAT
-    bne a0, t0, cls_retdouble
-    flw fa0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0, FFI_TYPE_FLOAT
+    bne     a0, t0, cls_retdouble
+    flw     fa0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retdouble:
-    li t0, FFI_TYPE_DOUBLE
-    bne a0, t0, cls_retstruct_d
-    fld fa0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_DOUBLE
+    bne     a0,  t0, cls_retstruct_d
+    fld     fa0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_d:
-    li t0, FFI_TYPE_STRUCT_D
-    bne a0, t0, cls_retstruct_f
-    fld fa0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_D
+    bne     a0,  t0, cls_retstruct_f
+    fld     fa0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_f:
-    li t0, FFI_TYPE_STRUCT_F
-    bne a0, t0, cls_retstruct_d_d
-    flw fa0, V0_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_F
+    bne     a0,  t0, cls_retstruct_d_d
+    flw     fa0, V0_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_d_d:
-    li t0, FFI_TYPE_STRUCT_DD
-    bne a0, t0, cls_retstruct_f_f
-    fld fa0, V0_OFF2(sp)
-    fld fa1, V1_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_DD
+    bne     a0,  t0, cls_retstruct_f_f
+    fld     fa0, V0_OFF2(sp)
+    fld     fa1, V1_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_f_f:
-    li t0, FFI_TYPE_STRUCT_FF
-    bne a0, t0, cls_retstruct_d_f
-    flw fa0, V0_OFF2(sp)
-    flw fa1, V1_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_FF
+    bne     a0,  t0, cls_retstruct_d_f
+    flw     fa0, V0_OFF2(sp)
+    flw     fa1, V1_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_d_f:
-    li t0, FFI_TYPE_STRUCT_DF
-    bne a0, t0, cls_retstruct_f_d
-    fld fa0, V0_OFF2(sp)
-    flw fa1, V1_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_DF
+    bne     a0,  t0, cls_retstruct_f_d
+    fld     fa0, V0_OFF2(sp)
+    flw     fa1, V1_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_f_d:
-    li t0, FFI_TYPE_STRUCT_FD
-    bne a0, t0, cls_retstruct_small2
-    flw fa0, V0_OFF2(sp)
-    fld fa1, V1_OFF2(sp)
-    j cls_epilogue
+    li      t0,  FFI_TYPE_STRUCT_FD
+    bne     a0,  t0, cls_retstruct_small2
+    flw     fa0, V0_OFF2(sp)
+    fld     fa1, V1_OFF2(sp)
+    j       cls_epilogue
     
 cls_retstruct_small2:
-    REG_L a0, V0_OFF2(sp)
-    REG_L a1, V1_OFF2(sp)
+    REG_L   a0, V0_OFF2(sp)
+    REG_L   a1, V1_OFF2(sp)
     
 # Epilogue
 cls_epilogue:
-    REG_L ra, RA_OFF2(sp) # Restore return address
-    addi sp, sp, SIZEOF_FRAME2
+    REG_L   ra, RA_OFF2(sp) # Restore return address
+    addi    sp, sp, SIZEOF_FRAME2
     ret
     
     .size ffi_closure_asm, .-ffi_closure_asm
