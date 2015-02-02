@@ -139,8 +139,8 @@ ffi_status FFI_HIDDEN ffi_prep_cif_core(ffi_cif *cif, ffi_abi abi,
   /* Perform a sanity check on the return type */
   FFI_ASSERT_VALID_TYPE(cif->rtype);
 
-  /* x86, x86-64 and s390 stack space allocation is handled in prep_machdep. */
-#if !defined M68K && !defined X86_ANY && !defined S390 && !defined PA
+  /* x86, x86-64, s390, and riscv stack space allocation is handled in prep_machdep. */
+#if !defined M68K && !defined X86_ANY && !defined S390 && !defined PA && !defined __riscv64
   /* Make space for the return structure pointer */
   if (cif->rtype->type == FFI_TYPE_STRUCT
 #ifdef SPARC
@@ -170,7 +170,7 @@ ffi_status FFI_HIDDEN ffi_prep_cif_core(ffi_cif *cif, ffi_abi abi,
 	 check after the initialization.  */
       FFI_ASSERT_VALID_TYPE(*ptr);
 
-#if !defined X86_ANY && !defined S390 && !defined PA
+#if !defined X86_ANY && !defined S390 && !defined PA && !defined __riscv64
 #ifdef SPARC
       if (((*ptr)->type == FFI_TYPE_STRUCT
 	   && ((*ptr)->size > 16 || cif->abi != FFI_V9))
@@ -197,7 +197,6 @@ ffi_status FFI_HIDDEN ffi_prep_cif_core(ffi_cif *cif, ffi_abi abi,
 	  if (bytes <= 6*4 && bytes + STACK_ARG_SIZE((*ptr)->size) > 6*4)
 	    bytes = 6*4;
 #endif
-
 	  bytes += STACK_ARG_SIZE((*ptr)->size);
 	}
 #endif

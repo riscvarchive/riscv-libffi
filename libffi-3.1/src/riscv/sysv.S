@@ -96,13 +96,7 @@ ffi_call_asm:
     add     fp, sp, zero             # new frame pointer is updated stack pointer
     add     t4, callback, zero       # function ptr to prep_args
 
-    # Allocate at least 8 words on the argstack
-    ori     t0, zero, FFI_SIZEOF_ARG_X8
-    bltu    bytes, t0, thirtytwo
-
-    # Here it turns out that our total arg space is bigger than our
-    # argument register space, so we set it according to bytes
-    # and makes sure its aligned to 16 bytes
+    # Here we're setting up our argspace and its size
     
     add     t0, bytes, 15      # make sure it is aligned 
     andi    t0, t0,   -16      # to a 16 byte boundry
@@ -315,7 +309,7 @@ set_arg7:
     # when its zero, it means its just a word-sized int/ptr
     bne     t1, zero, set_arg7_float 
     REG_L   a7, FFI_SIZEOF_ARG_X7(sp) # load argument
-    j       fix_sp
+    j       call_it
     
 set_arg7_float:
     addi    t1, t1, -2
@@ -323,7 +317,7 @@ set_arg7_float:
     # when its zero, it means its just a word-sized float
     bne     t1, zero, set_arg7_double
     flw     fa7, FFI_SIZEOF_ARG_X7(sp) # load argument
-    j       fix_sp
+    j       call_it
     
 set_arg7_double:
     # otherwise it must be a double we're dealing with
@@ -346,18 +340,14 @@ set_arg7_double:
     REG_L   a6, FFI_SIZEOF_ARG_X6(sp) # load argument
     REG_L   a7, FFI_SIZEOF_ARG_X7(sp) # load argument
 
-#endif
-
-fix_sp:
-    # fix the stack pointer to point to the first argument 
-    # not passed in a register
-    REG_L   t1, FFI_SIZEOF_ARG_X5(fp) # load bytes word
-    li      t0, FFI_SIZEOF_ARG_X8
-    
-    blt     t1, t0, call_it
-    add     sp, sp, FFI_SIZEOF_ARG_X8
+#endif  
 
 call_it:
+
+    # First, we fix the stack pointer to point to the first argument
+    # passed on the stack.
+    add     sp, sp, FFI_SIZEOF_ARG_X8
+
     # Load the function pointer
     REG_L   t4, FFI_SIZEOF_ARG_X2(fp)
 

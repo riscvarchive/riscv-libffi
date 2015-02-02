@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define STACK_ARG_SIZE(x) ALIGN(x, FFI_SIZEOF_ARG)
+
 /* ffi_prep_args is called by the assembly routine once stack space
    has been allocated for the function's arguments */
 
@@ -39,10 +41,11 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
 {
     int i;
     void **p_argv;
-    char *argp;
+    char *argp, *cpy_struct;
     ffi_type **p_arg;
     
     argp = stack;
+    cpy_struct = stack + ALIGN(bytes, 16);
 
     memset(stack, 0, bytes);
 
@@ -51,7 +54,7 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
         *(ffi_arg *) argp = (ffi_arg) ecif->rvalue;
         argp += sizeof(ffi_arg);
     }
-
+    
     p_argv = ecif->avalue;
 
     for (i = 0, p_arg = ecif->cif->arg_types; i < ecif->cif->nargs; i++, p_arg++)
@@ -163,14 +166,29 @@ static void ffi_prep_args(char *stack, extended_cif *ecif, int bytes, int flags)
                 memcpy(argp, (void*)((unsigned long)(*p_argv) + portion), z);
             }
         }
-        else
+        else if(i < 8 && z > 2*sizeof(ffi_arg))
         {
             /* It's too big to pass in any registers or on the stack, 
-               so we pass by reference. */
+               so we pass a pointer, and copy the struct to pass by value.
+               But, we can't _just_ copy it onto the stack! We need to actually
+               make sure it gets onto the "bottom" (really the top, high memory
+               addresses) of the stack frame... */
             
-            *(ffi_arg *)argp = (ffi_arg) *p_argv;
+            /* Update pointer to where our struct location on the stack is */
+            cpy_struct -= ALIGN(z, a);
+            
+            memcpy(cpy_struct, *p_argv, z);
+            
+            /* Pass pointer in register */
+            *(ffi_arg *)argp = (ffi_arg) cpy_struct;
             
             z = sizeof(ffi_arg);
+        }
+        else
+        {
+            /* Just some big struct, pass it by value by copying it onto
+               the stack. */
+            memcpy(argp, *p_argv, z);
         }
         
         p_argv++;
@@ -278,9 +296,7 @@ static unsigned calc_riscv_return_struct_flags(int soft_float, ffi_type *arg)
     return flags;
 }
 
-/* Perform machine dependent cif processing */
-
-ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
+void ffi_prep_args_flags(ffi_cif *cif)
 {
     int type;
     unsigned arg_reg = 0;
@@ -408,7 +424,46 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
             cif->flags += FFI_TYPE_INT << (FFI_FLAG_BITS * 8);
             break;
     }
+}
 
+/* Perform machine dependent cif processing */
+
+ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
+{
+    int i;
+    ffi_type **ptr;
+    unsigned bytes = 0, extra_bytes = 0;
+    
+    if (cif->rtype->type == FFI_TYPE_STRUCT)
+        bytes = STACK_ARG_SIZE(sizeof(void*));
+    
+    for (ptr = cif->arg_types, i = cif->nargs; i > 0; i--, ptr++)
+    {
+        /* Add any padding if necessary */
+        if (((*ptr)->alignment - 1) & bytes)
+            bytes = (unsigned)ALIGN(bytes, (*ptr)->alignment);
+
+        /* When we pass big structs in registers, we copy it onto the stack and assign a pointer to it */
+        if ((*ptr)->size > 2 * FFI_SIZEOF_ARG && bytes < 8 * FFI_SIZEOF_ARG)
+        {
+            bytes += sizeof(void*);
+            extra_bytes += STACK_ARG_SIZE((*ptr)->size);
+        }
+        else
+        {
+            bytes += STACK_ARG_SIZE((*ptr)->size);
+        }
+    }
+
+    if (bytes < 8 * FFI_SIZEOF_ARG)
+        bytes = 8 * FFI_SIZEOF_ARG;
+    
+    bytes += extra_bytes;
+    
+    cif->bytes = bytes;
+    
+    ffi_prep_args_flags(cif);
+    
     return FFI_OK;
 }
 
@@ -569,7 +624,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
             argp = (argn >= 8 || soft_float) ? ar + argn : fpr + argn;
             if ((arg_types[i]->type == FFI_TYPE_LONGDOUBLE) && ((uintptr_t)argp & (arg_types[i]->alignment-1)))
             {
-                argp = (ffi_arg*)ALIGN(argp,arg_types[i]->alignment);
+                argp = (ffi_arg*)ALIGN(argp, arg_types[i]->alignment);
                 argn++;
             }
             avaluep[i] = (char *) argp;
@@ -621,8 +676,18 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
                     *(UINT32 *) &avalue[i] = (UINT32) *argp;
                     break;
                     
+                case FFI_TYPE_SINT64:
+                    avaluep[i] = &avalue[i];
+                    *(SINT64 *) &avalue[i] = (SINT64) *argp;
+                    break;
+                    
+                case FFI_TYPE_UINT64:
+                    avaluep[i] = &avalue[i];
+                    *(UINT64 *) &avalue[i] = (UINT64) *argp;
+                    break;
+                    
                 case FFI_TYPE_STRUCT:
-                    if (argn < 8)
+                    if (argn < 8 && arg_types[i]->size <= 2*sizeof(ffi_arg))
                     {
                         /* Allocate space for the struct as at least part of
                            it was passed in registers. */
