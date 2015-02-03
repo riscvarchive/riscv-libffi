@@ -600,6 +600,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
     int i, avn, argn;
     int soft_float;
     ffi_arg *argp;
+    size_t z;
     
     cif = closure->cif;
     soft_float = cif->abi == FFI_RV64_SOFT_FLOAT || cif->abi == FFI_RV32_SOFT_FLOAT;
@@ -619,6 +620,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
     
     while (i < avn)
     {
+        z = arg_types[i]->size;
         if (arg_types[i]->type == FFI_TYPE_FLOAT || arg_types[i]->type == FFI_TYPE_DOUBLE || arg_types[i]->type == FFI_TYPE_LONGDOUBLE)
         {
             argp = (argn >= 8 || soft_float) ? ar + argn : fpr + argn;
@@ -689,10 +691,18 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
                 case FFI_TYPE_STRUCT:
                     if (argn < 8 && arg_types[i]->size <= 2*sizeof(ffi_arg))
                     {
-                        /* Allocate space for the struct as at least part of
-                           it was passed in registers. */
+                        /* Allocate space to copy structs that were passed in registers */
                         avaluep[i] = alloca(arg_types[i]->size);
                         copy_struct(avaluep[i], 0, cif->abi, arg_types[i], argn, 0, ar, fpr, soft_float);
+                        break;
+                    }
+                    else
+                    {
+                        /* The struct was too big to be passed in registers, so it was passed on the stack 
+                           with pointers in the registers. We need to properly pass the pointer AND set
+                           the correct size to increment by! */
+                        avaluep[i] = (void *) *argp;
+                        z = 1;
                         break;
                     }
                     
@@ -702,8 +712,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
                     break;
             }
         }
-        
-        argn += ALIGN(arg_types[i]->size, sizeof(ffi_arg)) / sizeof(ffi_arg);
+        argn += ALIGN(z, sizeof(ffi_arg)) / sizeof(ffi_arg);
         i++;
     }
     
