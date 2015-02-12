@@ -296,7 +296,11 @@ static unsigned calc_riscv_return_struct_flags(int soft_float, ffi_type *arg)
     return flags;
 }
 
-void ffi_prep_args_flags(ffi_cif *cif)
+/* Generate the flags word for processing arguments and 
+   putting them into their proper registers in the 
+   assembly routine. */
+
+void ffi_prep_cif_machdep_flags(ffi_cif *cif, unsigned int isvariadic, unsigned int nfixedargs)
 {
     int type;
     unsigned arg_reg = 0;
@@ -345,7 +349,7 @@ void ffi_prep_args_flags(ffi_cif *cif)
         type = (cif->arg_types)[index]->type;
         
         /* Handle float argument types for soft float case */
-        if (soft_float)
+        if (soft_float || (isvariadic && arg_reg >= nfixedargs))
         {
             switch (type)
             {
@@ -426,9 +430,11 @@ void ffi_prep_args_flags(ffi_cif *cif)
     }
 }
 
-/* Perform machine dependent cif processing */
+/* Count how big our argspace is in bytes. Here, we always
+   allocate at least 8 pointer words and handle big structs
+   being passed in registers. */
 
-ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
+void ffi_prep_cif_machdep_bytes(ffi_cif *cif)
 {
     int i;
     ffi_type **ptr;
@@ -461,9 +467,25 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
     bytes += extra_bytes;
     
     cif->bytes = bytes;
-    
-    ffi_prep_args_flags(cif);
-    
+}
+
+/* Perform machine dependent cif processing */
+
+ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
+{
+    ffi_prep_cif_machdep_bytes(cif);
+    ffi_prep_cif_machdep_flags(cif, 0, 0);
+    cif->isvariadic = 0;
+    return FFI_OK;
+}
+
+/* Perform machine dependent cif processing when we have a variadic function */
+
+ffi_status ffi_prep_cif_machdep_var(ffi_cif *cif, unsigned int nfixedargs, unsigned int ntotalargs)
+{
+    ffi_prep_cif_machdep_bytes(cif);
+    ffi_prep_cif_machdep_flags(cif, 1, nfixedargs);
+    cif->isvariadic = 1;
     return FFI_OK;
 }
 
@@ -623,7 +645,7 @@ int ffi_closure_riscv_inner(ffi_closure *closure, void *rvalue, ffi_arg *ar, ffi
         z = arg_types[i]->size;
         if (arg_types[i]->type == FFI_TYPE_FLOAT || arg_types[i]->type == FFI_TYPE_DOUBLE || arg_types[i]->type == FFI_TYPE_LONGDOUBLE)
         {
-            argp = (argn >= 8 || soft_float) ? ar + argn : fpr + argn;
+            argp = (argn >= 8 || cif->isvariadic || soft_float) ? ar + argn : fpr + argn;
             if ((arg_types[i]->type == FFI_TYPE_LONGDOUBLE) && ((uintptr_t)argp & (arg_types[i]->alignment-1)))
             {
                 argp = (ffi_arg*)ALIGN(argp, arg_types[i]->alignment);
