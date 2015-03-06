@@ -60,17 +60,15 @@
 #define FFI_FLAG_BITS_X7 (7 * FFI_FLAG_BITS)
 
 # Stack pointer needs to be 16-byte aligned, so frame size is rounded up
-#ifdef __riscv64
-#  define SIZEOF_FRAME (6 * FFI_SIZEOF_ARG)
-#else
-#  define SIZEOF_FRAME (8 * FFI_SIZEOF_ARG)
-#endif
+#define SIZEOF_FRAME (6 * FFI_SIZEOF_ARG)
 
     .text
     .align  2
     .globl  ffi_call_asm
     .type   ffi_call_asm, @function
-ffi_call_asm:   
+ffi_call_asm:
+    .cfi_startproc
+    
     ### Prologue
     
     # a0 - ffi_prep_args pointer
@@ -86,16 +84,23 @@ ffi_call_asm:
     # stack ptr points to first argument on stack,
     # but there should be no arguments on the stack
     
-    REG_S   flags,   FFI_SIZEOF_ARG_X0(sp)   # save flags
-    REG_S   rvalue,  FFI_SIZEOF_ARG_X1(sp)   # save return value pointer
-    REG_S   fn,      FFI_SIZEOF_ARG_X2(sp)   # save function pointer
-    REG_S   fp,      FFI_SIZEOF_ARG_X3(sp)   # save frame pointer
-    REG_S   ra,      FFI_SIZEOF_ARG_X4(sp)   # save return address
-    REG_S   bytes,   FFI_SIZEOF_ARG_X5(sp)   # save number of bytes
+    .cfi_def_cfa_offset SIZEOF_FRAME
     
-    add     fp, sp, zero             # new frame pointer is updated stack pointer
+    REG_S   ra,      FFI_SIZEOF_ARG_X5(sp)   # save return address
+    REG_S   fp,      FFI_SIZEOF_ARG_X4(sp)   # save frame pointer
+    REG_S   flags,   FFI_SIZEOF_ARG_X3(sp)   # save flags
+    REG_S   fn,      FFI_SIZEOF_ARG_X2(sp)   # save function pointer
+    REG_S   rvalue,  FFI_SIZEOF_ARG_X1(sp)   # save return value pointer
+    
+    .cfi_offset 1, -8
+    .cfi_offset 8, -16
+    
+    add     fp, sp, SIZEOF_FRAME     # new frame pointer is old stack pointer
+    
+    .cfi_def_cfa 8, 0
+    
     add     t4, callback, zero       # function ptr to prep_args
-
+    
     # Here we're setting up our argspace and its size
     
     add     t0, bytes, 15      # make sure it is aligned 
@@ -113,7 +118,7 @@ thirtytwo:
 
     jalr    t4  # call ffi_prep_args
     
-    REG_L   t0, FFI_SIZEOF_ARG_X0(fp)  # load the flags word
+    REG_L   t0, -FFI_SIZEOF_ARG_X3(fp)  # load the flags word
     srli    t2, t0, 16                 # shift our return type into t2
     
     li      t1, ARG_MASK
@@ -343,21 +348,18 @@ set_arg7_double:
 #endif  
 
 call_it:
-
     # First, we fix the stack pointer to point to the first argument
     # passed on the stack.
     add     sp, sp, FFI_SIZEOF_ARG_X8
 
     # Load the function pointer
-    REG_L   t4, FFI_SIZEOF_ARG_X2(fp)
+    REG_L   t4, -FFI_SIZEOF_ARG_X4(fp)
 
     # When the return value pointer is NULL, assume no return value.
-    REG_L   t1, FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t1, -FFI_SIZEOF_ARG_X5(fp)
     beq     t1, zero, return_void
-
-    # is the return type an int? if not, and if we have an FPU,
-    # jump ahead
-
+    
+    # is the return type an int? if not, jump ahead
     ori     t3, zero, FFI_TYPE_INT
     bne     t2, t3,   return_int32
     
@@ -365,7 +367,7 @@ call_it:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0, FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0, -FFI_SIZEOF_ARG_X5(fp)
     REG_S   a0, 0(t0)
     j       epilogue
 
@@ -381,7 +383,7 @@ return_int32:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0, FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0, -FFI_SIZEOF_ARG_X5(fp)
     sw      a0, 0(t0)
     j       epilogue
     
@@ -395,7 +397,7 @@ return_float:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 
@@ -408,7 +410,7 @@ return_double:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
 
@@ -427,7 +429,7 @@ return_struct_d:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
     
@@ -440,7 +442,7 @@ return_struct_f:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
     
@@ -453,7 +455,7 @@ return_struct_d_d:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     fsd     fa1, FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -467,7 +469,7 @@ return_struct_f_f:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     fsw     fa1, FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -481,7 +483,7 @@ return_struct_d_f:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsd     fa0, FFI_SIZEOF_ARG_X0(t0)
     fsw     fa1, FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -495,7 +497,7 @@ return_struct_f_d:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     fsw     fa0, FFI_SIZEOF_ARG_X0(t0)
     fsd     fa1, FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -517,7 +519,7 @@ return_struct_d_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sd      a0,  FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
     
@@ -530,7 +532,7 @@ return_struct_f_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sw      a0,  FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
     
@@ -543,7 +545,7 @@ return_struct_d_d_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sd      a0,  FFI_SIZEOF_ARG_X0(t0)
     sd      a1,  FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -557,7 +559,7 @@ return_struct_f_f_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sw      a0,  FFI_SIZEOF_ARG_X0(t0)
     sw      a1,  FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -571,7 +573,7 @@ return_struct_d_f_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sd      a0,  FFI_SIZEOF_ARG_X0(t0)
     sw      a1,  FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -585,7 +587,7 @@ return_struct_f_d_soft:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     sw      a0,  FFI_SIZEOF_ARG_X0(t0)
     sd      a1,  FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -603,7 +605,7 @@ return_struct_small:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     REG_S   a0,  FFI_SIZEOF_ARG_X0(t0)
     j       epilogue
     
@@ -616,7 +618,7 @@ return_struct_small2:
     
     # We reload the return pointer because it was in a temp reg and
     # there was just a function call.
-    REG_L   t0,  FFI_SIZEOF_ARG_X1(fp)
+    REG_L   t0,  -FFI_SIZEOF_ARG_X5(fp)
     REG_S   a0,  FFI_SIZEOF_ARG_X0(t0)
     REG_S   a1,  FFI_SIZEOF_ARG_X1(t0)
     j       epilogue
@@ -627,12 +629,12 @@ return_void:
     jalr    t4 # call the function
    
 epilogue:   
-    add     sp, fp, zero    
-    REG_L   fp, FFI_SIZEOF_ARG_X3(sp)  # Restore frame pointer
-    REG_L   ra, FFI_SIZEOF_ARG_X4(sp)  # Restore return address
-    add     sp, sp, SIZEOF_FRAME       # Fix stack pointer
+    add     sp, fp, zero               # Fix stack pointer
+    REG_L   fp, -FFI_SIZEOF_ARG_X2(sp)  # Restore frame pointer
+    REG_L   ra, -FFI_SIZEOF_ARG_X1(sp)  # Restore return address      
     jr      ra
     
+    .cfi_endproc
     .size   ffi_call_asm, .-ffi_call_asm
 
     
@@ -663,9 +665,16 @@ epilogue:
     .globl ffi_closure_asm
     .type ffi_closure_asm, @function
 ffi_closure_asm:
+    .cfi_startproc
 
     addi    sp,  sp, -SIZEOF_FRAME2
+    
+    .cfi_def_cfa_offset SIZEOF_FRAME2
+    
     REG_S   ra,  RA_OFF2(sp) # Save return address
+    
+    .cfi_offset  1, -19*FFI_SIZEOF_ARG
+    .cfi_def_cfa 2, SIZEOF_FRAME2
     
     # Store all possible argument registers. If there are more than
     # fit in registers, then they were stored on the stack.
@@ -769,4 +778,5 @@ cls_epilogue:
     addi    sp, sp, SIZEOF_FRAME2
     ret
     
+    .cfi_endproc
     .size ffi_closure_asm, .-ffi_closure_asm
